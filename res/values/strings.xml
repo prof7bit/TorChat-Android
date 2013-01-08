@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">TorChat</string>
+    <string name="menu_settings">Settings</string>
+    <string name="service_running">TorChat</string>
+    <string name="service_running_detail">Background service is active</string>
+    <string name="menu_quit">Quit</string>
+    <string name="toast_service_stopped">TorChat service stopped</string>
+
+</resources>
