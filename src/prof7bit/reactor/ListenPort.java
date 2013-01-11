@@ -61,4 +61,9 @@ public class ListenPort extends Handle{
 			throw new NullPointerException("TCP instance (incoming) without callback");
 		}
 	}
+
+	@Override
+	void doEventClose(IOException e) {
+		// ListenPort will just ignore this event 
+	}
 }

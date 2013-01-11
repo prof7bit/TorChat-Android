@@ -9,6 +9,8 @@ import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import prof7bit.reactor.ex.ConnectionClosedHere;
+
 /**
  * This implements the reactor pattern on top of the java.nio.Selector class.
  * 
@@ -137,15 +139,9 @@ public class Reactor extends Thread{
 				}
 				
 			} catch (IOException e) {
-				System.out.println("foo: " + e.getMessage());
 				// on any IO exception we simply close the Handle
-				// and make it fire its onDisconnect() event.
-				Handle h = (Handle) key.attachment();
-				key.cancel();
-				key.channel().close();
-				if (h instanceof TCP){
-					((TCP) h).doEventDisconnect(e);
-				}
+				// which will make it fire its onDisconnect() event.
+				requestCloseHandle((Handle) key.attachment(), e);
 			}
 		}
 	}
@@ -169,9 +165,10 @@ public class Reactor extends Thread{
 	 * the onDisonnect() handler if it is a TCP connection.
 	 * 
 	 * @param h the Handle to close
+	 * @param reason IOException that should be passed to the event handler
 	 */
-	protected void requestCloseHandle (Handle h){
-		addTask(new CloseRequest(h));
+	protected void requestCloseHandle (Handle h, IOException reason){
+		addTask(new CloseRequest(h, reason));
 	}
 	
 	/**
@@ -183,7 +180,7 @@ public class Reactor extends Thread{
 		pendingTasks.offer(r);
 		selector.wakeup();
 	}
-	
+
 	/**
 	 * A request to register a Handle with this Reactor. Instances of this 
 	 * class can be enqueued to be run between two calls to selector.select() 
@@ -217,18 +214,18 @@ public class Reactor extends Thread{
 	 */
 	private class CloseRequest implements Runnable {
 		private Handle handle;
+		private IOException reason;
 		
-		public CloseRequest(Handle h){
-			handle = h;
+		public CloseRequest(Handle handle, IOException reason){
+			this.handle = handle;
+			this.reason = reason;
 		}
 		
 		@Override
 		public void run(){
 			try {
 				handle.channel.close();
-				if (handle instanceof TCP){
-					((TCP) handle).doEventDisconnect(new IOException("closed here"));
-				}
+				handle.doEventClose(reason);
 			} catch (IOException e) {
 				e.printStackTrace();
 				// ignore
@@ -256,7 +253,8 @@ public class Reactor extends Thread{
 		@Override
 		public void run() {
 			for (SelectionKey key:selector.keys()) {
-				addTask(new CloseRequest((Handle) key.attachment()));
+				addTask(new CloseRequest((Handle) key.attachment(), 
+						new ConnectionClosedHere("reactor shutdown")));
 			}
 			addTask(new TerminateRequest());
 		}

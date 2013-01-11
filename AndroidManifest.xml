@@ -17,7 +17,7 @@
         android:label="@string/app_name"
         android:theme="@style/Theme.Sherlock">
         <activity
-            android:name=".gui.TorChat" android:label="@string/app_name" android:launchMode="singleTop">
+            android:name="prof7bit.torchat.android.gui.TorChat" android:label="@string/app_name" android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -25,7 +25,7 @@
             </intent-filter>
         </activity>
         <service 
-            android:name=".service.Backend">
+            android:name="prof7bit.torchat.android.service.Backend">
         </service>
     </application>
 </manifest>

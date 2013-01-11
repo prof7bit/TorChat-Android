@@ -1,5 +1,6 @@
 package prof7bit.reactor;
 
+import java.io.IOException;
 import java.nio.channels.SelectableChannel;
 
 /**
@@ -20,10 +21,12 @@ public abstract class Handle {
 		reactor.register(this, ops);
 	}
 	
-	public void close(){
-		reactor.requestCloseHandle(this);
+	public void close(IOException reason){
+		reactor.requestCloseHandle(this, reason);
 	}
 	
+	abstract void doEventClose(IOException e);
+
 	@Override
 	protected void finalize(){
 		System.out.println(this.toString() + " garbage collected");

@@ -1,13 +1,19 @@
 package prof7bit.reactor;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.util.Locale;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import prof7bit.reactor.ex.ConnectionClosedRemote;
+import prof7bit.reactor.ex.SocksConnectionError;
+import prof7bit.reactor.ex.SocksHandshakeError;
 
 /**
  * An Instance of this class represents a TCP connection. The application
@@ -46,10 +52,17 @@ public class TCP extends Handle {
 	private Queue<ByteBuffer> unsent = new ConcurrentLinkedQueue<ByteBuffer>();
 	
 	/**
+	 * This signals that we may not yet subscribe to OP_WRITE and not yet send 
+	 * queued data because we are still talking to the socks proxy. The socks
+	 * connection handler itself does not use the send queue at all.  
+	 */
+	private boolean insideSocksHandshake = false;
+		
+	/**
 	 * Construct a new incoming TCP. 
 	 * The Reactor will call this constructor automatically.
 	 *  
-	 * @param r the Reactor to which it should be attached
+	 * @param r the reactor that should manage this TCP object
 	 * @param sc the underlying connected SocketChannel
 	 * @throws IOException
 	 */
@@ -67,13 +80,43 @@ public class TCP extends Handle {
 	 * been established. Some time later the appropriate callback method will 
 	 * be fired once the connection succeeds or fails.
 	 * 
-	 * @param r
-	 * @param addr
-	 * @param port
+	 * @param r the reactor that should manage this TCP object
+	 * @param addr the server to connect to
+	 * @param port the port of the server to connect to
 	 * @throws IOException
 	 */
 	public TCP(Reactor r, String addr, int port, Callback cb) throws IOException{
 		System.out.println(this.toString() + " outgoing constructor");
+		connect(r, addr, port, cb);
+	}
+
+	/**
+	 * Construct a new outgoing TCP connection through a socks4a proxy.
+	 * Towards the application this behaves exactly like the other constructor,
+	 * you can immediately start sending (queued), etc. The only difference is
+	 * this will connect through a socks4a proxy (4a means the socks proxy will 
+	 * resolve host names) 
+	 * 
+	 * @param r The reactor that should manage this TCP object
+	 * @param addr The server to connect to
+	 * @param port The port of the server to connect to
+	 * @param cb The event handler of the application, may NOT be null
+	 * @param proxy_addr
+	 * @param proxy_port
+	 * @param proxy_user
+	 * @throws IOException
+	 */
+	public TCP(Reactor r, String addr, int port, Callback cb, String proxy_addr, int proxy_port, String proxy_user) throws IOException{
+		// the socks handler will upon successful connection replace itself 
+		// with the event handler that was provided by the application.
+		Socks4aHandler sh = new Socks4aHandler(this, addr, port, proxy_user, cb);
+		connect(r, proxy_addr, proxy_port, sh);
+	}
+	
+	/**
+	 * this is only meant to be used from inside the constructor
+	 */
+	private void connect(Reactor r, String addr, int port, Callback cb) throws IOException {
 		SocketChannel sc = SocketChannel.open();
 		initMembers(sc, r, cb);
 		SocketAddress sa = new InetSocketAddress(addr, port);
@@ -111,10 +154,30 @@ public class TCP extends Handle {
 	public void send(ByteBuffer buf){
 		buf.position(0);
 		unsent.offer(buf);
+		if (insideSocksHandshake){
+			return;
+		}
 		if (((SocketChannel) channel).isConnected()){
 			registerWithReactor(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
 		} 
-		// if not yet connected it will be deferred until doEventConnect() 
+		// if not yet connected or if still inside socks handshake then
+		// subscribing OP_WRITE will be deferred until connection is complete.
+		// The Socks handler itself will bypass the queue and write directly.
+	}
+	
+	/**
+	 * this is used only during socks connect, here don't want to use the
+	 * send queue because the queue contains data sent from the application 
+	 * which must not be mixed with data sent during the socks handshake.
+	 *    
+	 * @param buf ByteBuffer with data to send
+	 * @throws IOException
+	 */
+	private void sendNow(ByteBuffer buf) throws IOException{
+		SocketChannel sc = (SocketChannel) channel;
+		while (buf.hasRemaining()){
+			sc.write(buf);
+		}
 	}
 		
 	/**
@@ -132,7 +195,7 @@ public class TCP extends Handle {
 		if (numRead == -1){
 			// this will make the reactor close the channel
 			// and then fire our onDisconnect() event.
-			throw new IOException("closed by foreign host");
+			throw new ConnectionClosedRemote("closed by foreign host");
 		}else{
 			buf.position(0);
 			buf.limit(numRead);
@@ -141,20 +204,28 @@ public class TCP extends Handle {
 	}
 	
 	/**
-	 * This method is automatically called by the Reactor.
+	 * This method is automatically called by the Reactor. The IOException
+	 * object tells the reason why exactly it had to be closed. This event
+	 * also occurs when a connect attempt failed.
 	 */
-	protected void doEventDisconnect(Exception e){
-		System.out.println(this.toString() + " doEventDisconnect() " + e.getMessage());
+	protected void doEventClose(IOException e){
+		System.out.println(this.toString() + " doEventClose() " + e.getMessage());
 		callback.onDisconnect(e);
 	}
 	
 	/**
-	 * This method is automatically called by the Reactor.
+	 * This method is automatically called by the Reactor. Here we can also
+	 * register OP_WRITE if we have queued data to send already. 
+	 * 
+	 * Note that we will NOT register OP_WRITE if we did connect to a socks 
+	 * proxy, in this case the queued data must wait even longer, the socks 
+	 * handler will finally fire doEventConnect() a second time and then we 
+	 * will be back to normal and the app will receive the connect event.
 	 */
 	protected void doEventConnect() {
 		System.out.println(this.toString() + " doEventConnect()");
 		
-		if (unsent.isEmpty()){
+		if (unsent.isEmpty() | insideSocksHandshake){
 			registerWithReactor(SelectionKey.OP_READ);
 		}else{
 			registerWithReactor(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
@@ -167,6 +238,8 @@ public class TCP extends Handle {
 	 * to the application, it is only used internally to automatically send
 	 * remaining data from the unsent queue. Any IOException happening here
 	 * will cause the channel to be closed and onDisconnect() to be fired.
+	 * Note that this event won't be fired during a Socks handshake, and the 
+	 * Socks handler will bypass the send queue entirely. 
 	 * 
 	 * @throws IOException
 	 */
@@ -190,6 +263,94 @@ public class TCP extends Handle {
 			}else{
 				unsent.remove(); // ok --> try next buffer
 			}
+		}
+	}
+	
+	/**
+	 * This event handler implements the client side of a Socks4a connection
+	 * request. After it has successfully succeeded the handler will replace
+	 * itself with the handler that the application has provided earlier and
+	 * normal TCP sending and receiving for the application may take place.
+	 */
+	private class Socks4aHandler implements Callback{
+		private TCP tcp;
+		private String address;
+		private int port;
+		private String user; // user-ID for Socks-Proxy
+		private Callback application; 
+		
+		public Socks4aHandler(TCP tcp, String address, int port, String user, Callback application){
+			this.tcp = tcp;
+			this.address = address;
+			this.port = port;
+			this.user = user;
+			this.application = application;
+			tcp.insideSocksHandshake = true;
+		}
+
+		@Override
+		public void onConnect() {
+			System.out.println("socks4a onConnect()");
+			ByteArrayOutputStream req = new ByteArrayOutputStream(64);
+			req.write(0x04); // socks version 4
+			req.write(0x01); // request TCP stream connection
+			
+			// port of the server to connect to in big-endian
+			req.write((byte) ((port & 0xff00) >> 8));
+			req.write((byte) (port & 0x00ff));
+			
+			// deliberately invalid IP address to denote that we wish the 
+			// 4a variant of the socks protocol (proxy will resolve name)
+			req.write(0x00);
+			req.write(0x00);
+			req.write(0x00);
+			req.write(0x01);
+			
+			// User-ID, null-terminated string
+			byte[] buser = user.getBytes();
+			req.write(buser, 0, buser.length);
+			req.write(0x00);
+			
+			// host name to connect to, null-terminated string
+			byte[] baddr = address.getBytes();
+			req.write(baddr, 0, baddr.length);
+			req.write(0x00);
+			
+			// now we send the request. Note that we do not send it through the
+			// queue, we send it immediately. After this the proxy will send us 
+			// an answer about success or failure, we handle that in onReceive() 
+			try {
+				sendNow(ByteBuffer.wrap(req.toByteArray()));
+			} catch (IOException e) {
+				e.printStackTrace();
+				tcp.close(e);
+			}
+		}
+
+		@Override
+		public void onDisconnect(Exception e) {
+			System.out.println("socks4a onDisconnect()");
+			application.onDisconnect(e);
+		}
+
+		@Override
+		public void onReceive(ByteBuffer buf) {
+			System.out.println("socks4a onReceive()");
+			if (buf.limit() != 8){
+				tcp.close(new SocksHandshakeError("malformed reply from socks proxy"));
+				return;
+			}
+			byte status = buf.array()[1];
+			if (status != 0x5a){
+				String msg = String.format(Locale.ENGLISH, "socks4a error %d while connecting %s:%s", status, address, port); 
+				tcp.close(new SocksConnectionError(msg, status));
+				return;
+			}
+			
+			// tcp stream established, now hand over all control to application
+			tcp.callback = application;
+			tcp.insideSocksHandshake = false;
+			tcp.doEventConnect();
 		}
 	}
 }

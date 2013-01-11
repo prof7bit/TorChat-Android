@@ -27,18 +27,18 @@ public class Connection implements TCP.Callback{
 	}
 	
 	/**
-	 * Create a new outgoing connection. The constructor will return
-	 * immediately and a new Handle will be created but it is not yet 
-	 * finished connecting. After some time either the onConnect() or
-	 * the onDisconnect() method will be called. We can already start
-	 * sending, it will be queued until connect succeeds.
+	 * Create a new outgoing connection through the Tor proxy (Socks4a)
+	 * The constructor will return immediately and a new Handle will be created 
+	 * but it is not yet finished connecting. After some time either the 
+	 * onConnect() or the onDisconnect() method will be called. We can already 
+	 * start sending, it will be queued until connect succeeds.
 	 * 
 	 * @param address IP-address or host name to connect to
 	 * @param port
 	 * @throws IOException 
 	 */
-	public Connection(Reactor r, String address, int port) throws IOException{
-		tcp = new TCP(r, address, port, this);
+	public Connection(Reactor r, String addr, int port) throws IOException{
+		tcp = new TCP(r, addr, port, this, "127.0.0.1", 9050, "TorChat");
 	}
 
 	@Override
@@ -48,6 +48,7 @@ public class Connection implements TCP.Callback{
 
 	@Override
 	public void onDisconnect(Exception e) {
+		System.out.println("Connection.onDisconnect: " + e.toString());
 		// TODO Auto-generated method stub
 	}
 
