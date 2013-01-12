@@ -14,7 +14,7 @@ import android.os.IBinder;
 import android.widget.Toast;
 
 
-public class Backend extends Service implements ListenPort.Callback{
+public class Backend extends Service implements ListenPort.EventHandler{
 	
 	private NotificationManager nMgr;
 	private int NOTIFICATION = 10429; //Any unique number for this notification

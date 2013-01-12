@@ -8,7 +8,7 @@ import java.nio.channels.SocketChannel;
 
 /**
  * This class represents a network port listening for incoming TCP connections.
- * It is a thin wrapper around ServerSocketChannel. Callback.onAccept() must be
+ * It is a thin wrapper around ServerSocketChannel. EventHandler.onAccept() must be
  * implemented by the application and will be fired when an incoming TCP
  * connection is accepted.
  * 
@@ -20,27 +20,36 @@ public class ListenPort extends Handle{
 	 * The application must implement this in order to receive incoming 
 	 * connections. All calls to this interface will originate from the
 	 * reactor thread. The first thing the application must do in onAccept()
-	 * is to assign its implementation of TCP.Callback to tcp.callback,
+	 * is to assign its implementation of TCP.EventHandler to tcp.callback,
 	 * this must happen before it returns from onAccept().
 	 */
-	public interface Callback {
+	public interface EventHandler {
 		void onAccept(TCP tcp);
 	}
 	
 	/**
 	 * The application must assign its implementation 
-	 * of the Callback interface to this member 
+	 * of the EventHandler interface to this member 
 	 */
-	public Callback callback;
+	public EventHandler eventHandler;
 
-	public ListenPort(Reactor r, Callback cb){
+	public ListenPort(Reactor r, EventHandler eh){
 		reactor = r;
-		callback = cb;
-		if (callback == null){
-			throw new NullPointerException("ListenPort instance without callback");
+		eventHandler = eh;
+		if (eventHandler == null){
+			throw new NullPointerException("ListenPort instance without eventHandler");
 		}
 	}
 	
+	/**
+	 * bind the port and start listening for incoming TCP connections.
+	 * Every incoming TCP connection will now be automatically accepted and 
+	 * every time this happens the onAccept() handler will be called along 
+	 * with a newly instantiated TCP object.
+	 *  
+	 * @param port the port to bind
+	 * @throws IOException
+	 */
 	public void listen(int port) throws IOException{
 		ServerSocketChannel ssc = ServerSocketChannel.open();
 		ssc.socket().setReuseAddress(true);
@@ -49,19 +58,27 @@ public class ListenPort extends Handle{
 		channel = ssc;
 		registerWithReactor(SelectionKey.OP_ACCEPT);
 	}
-	
+
+	/**
+	 * called by the reactor
+	 */
 	protected void doEventAccept() throws IOException{
 		ServerSocketChannel ssc = (ServerSocketChannel) channel;
 		SocketChannel sc = ssc.accept();
 		TCP tcp = new TCP(reactor, sc);
-		callback.onAccept(tcp);
+		eventHandler.onAccept(tcp);
 		
-		// the onAccept handler *must* install a callback before it returns!
-		if (tcp.callback == null){
-			throw new NullPointerException("TCP instance (incoming) without callback");
+		// the onAccept handler *must* install a eventHandler before it returns!
+		if (tcp.eventHandler == null){
+			throw new NullPointerException("TCP instance (incoming) without eventHandler");
 		}
 	}
 
+	/**
+	 * called by the reactor when the listening socket is shut down (normally
+	 * only when the application terminates). Not much need to pass this event
+	 * to the application, just ignore it. 
+	 */
 	@Override
 	void doEventClose(IOException e) {
 		// ListenPort will just ignore this event 

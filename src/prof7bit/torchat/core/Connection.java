@@ -6,7 +6,7 @@ import java.nio.ByteBuffer;
 import prof7bit.reactor.Reactor;
 import prof7bit.reactor.TCP;
 
-public class Connection implements TCP.Callback{
+public class Connection implements TCP.EventHandler{
 	private TCP tcp;
 	private byte[] bufIncomplete = null;
 	
@@ -23,7 +23,7 @@ public class Connection implements TCP.Callback{
 	 */
 	public Connection(TCP c){
 		tcp = c;
-		tcp.callback = this;
+		tcp.eventHandler = this;
 	}
 	
 	/**

@@ -16,8 +16,8 @@ import prof7bit.reactor.ex.SocksConnectionError;
 import prof7bit.reactor.ex.SocksHandshakeError;
 
 /**
- * An Instance of this class represents a TCP connection. The application
- * must implement the Callback interface and assign it to the callback
+ * An Instance of this class represents a TCP connection. The appHandler
+ * must implement the EventHandler interface and assign it to the eventHandler
  * member in order to receive onConnect(), onDisconnect() and onReceive()
  * events. TCP is a thin wrapper around java.nio.SocketChannel. TCP also
  * implements asynchronous sending of outgoing data. Every TCP object is 
@@ -29,20 +29,20 @@ import prof7bit.reactor.ex.SocksHandshakeError;
 public class TCP extends Handle {
 	
 	/**
-	 * The application must implement this interface and assign it to the 
-	 * Callback field, so that it can receive notifications. All calls to
+	 * The appHandler must implement this interface and assign it to the 
+	 * eventHandler field, so that it can receive notifications. All calls to
 	 * these methods will originate from the Reactor thread.
 	 */
-	public interface Callback {
+	public interface EventHandler {
 		public void onConnect();
 		public void onDisconnect(Exception e);
 		public void onReceive(ByteBuffer buf);
 	}
 	
 	/**
-	 * Assign something here that implements TCP.Callback 
+	 * Assign something here that implements TCP.EventHandler 
 	 */
-	public Callback callback;
+	public EventHandler eventHandler;
 	
 	/**
 	 * This holds a queue of unsent or partially sent ByteBuffers if more
@@ -75,9 +75,9 @@ public class TCP extends Handle {
 	/**
 	 * Construct a new outgoing connection.
 	 * This will create the Handle object and initiate the connect. It will
-	 * not block and the application can immediately start using the send()
+	 * not block and the appHandler can immediately start using the send()
 	 * method (which also will not block), even if the connection has not yet
-	 * been established. Some time later the appropriate callback method will 
+	 * been established. Some time later the appropriate eventHandler method will 
 	 * be fired once the connection succeeds or fails.
 	 * 
 	 * @param r the reactor that should manage this TCP object
@@ -85,14 +85,15 @@ public class TCP extends Handle {
 	 * @param port the port of the server to connect to
 	 * @throws IOException
 	 */
-	public TCP(Reactor r, String addr, int port, Callback cb) throws IOException{
+	public TCP(Reactor r, String addr, int port, EventHandler eh) throws IOException{
 		System.out.println(this.toString() + " outgoing constructor");
-		connect(r, addr, port, cb);
+		checkHandler(eh);
+		connect(r, addr, port, eh);
 	}
 
 	/**
 	 * Construct a new outgoing TCP connection through a socks4a proxy.
-	 * Towards the application this behaves exactly like the other constructor,
+	 * Towards the appHandler this behaves exactly like the other constructor,
 	 * you can immediately start sending (queued), etc. The only difference is
 	 * this will connect through a socks4a proxy (4a means the socks proxy will 
 	 * resolve host names) 
@@ -100,25 +101,26 @@ public class TCP extends Handle {
 	 * @param r The reactor that should manage this TCP object
 	 * @param addr The server to connect to
 	 * @param port The port of the server to connect to
-	 * @param cb The event handler of the application, may NOT be null
+	 * @param eh The event handler of the appHandler, may NOT be null
 	 * @param proxy_addr
 	 * @param proxy_port
 	 * @param proxy_user
 	 * @throws IOException
 	 */
-	public TCP(Reactor r, String addr, int port, Callback cb, String proxy_addr, int proxy_port, String proxy_user) throws IOException{
+	public TCP(Reactor r, String addr, int port, EventHandler eh, String proxy_addr, int proxy_port, String proxy_user) throws IOException{
+		checkHandler(eh);
 		// the socks handler will upon successful connection replace itself 
-		// with the event handler that was provided by the application.
-		Socks4aHandler sh = new Socks4aHandler(this, addr, port, proxy_user, cb);
-		connect(r, proxy_addr, proxy_port, sh);
+		// with the event handler that was provided by the appHandler.
+		Socks4aHandler sockshandler = new Socks4aHandler(this, addr, port, proxy_user, eh);
+		connect(r, proxy_addr, proxy_port, sockshandler);
 	}
 	
 	/**
 	 * this is only meant to be used from inside the constructor
 	 */
-	private void connect(Reactor r, String addr, int port, Callback cb) throws IOException {
+	private void connect(Reactor r, String addr, int port, EventHandler eh) throws IOException {
 		SocketChannel sc = SocketChannel.open();
-		initMembers(sc, r, cb);
+		initMembers(sc, r, eh);
 		SocketAddress sa = new InetSocketAddress(addr, port);
 		if (sc.connect(sa)){
 			// according to documentation it is possible for local connections
@@ -131,15 +133,21 @@ public class TCP extends Handle {
 		}
 	}
 	
+	private void checkHandler(EventHandler eh){
+		if (eh == null){
+			throw new NullPointerException("TCP instance (outgoing) without eventHandler");
+		}
+	}
+	
 	/**
 	 * initialize member variables, used during construction
 	 */
-	protected void initMembers(SocketChannel sc, Reactor r, Callback cb) throws IOException{
+	protected void initMembers(SocketChannel sc, Reactor r, EventHandler eh) throws IOException{
 		sc.configureBlocking(false);
 		sc.socket().setTcpNoDelay(true);
 		channel = sc;
 		reactor = r;
-		callback = cb;
+		eventHandler = eh;
 	}
 	
 	/**
@@ -167,7 +175,7 @@ public class TCP extends Handle {
 	
 	/**
 	 * this is used only during socks connect, here don't want to use the
-	 * send queue because the queue contains data sent from the application 
+	 * send queue because the queue contains data sent from the appHandler 
 	 * which must not be mixed with data sent during the socks handshake.
 	 *    
 	 * @param buf ByteBuffer with data to send
@@ -199,7 +207,7 @@ public class TCP extends Handle {
 		}else{
 			buf.position(0);
 			buf.limit(numRead);
-			callback.onReceive(buf);
+			eventHandler.onReceive(buf);
 		}
 	}
 	
@@ -208,9 +216,10 @@ public class TCP extends Handle {
 	 * object tells the reason why exactly it had to be closed. This event
 	 * also occurs when a connect attempt failed.
 	 */
+	@Override
 	protected void doEventClose(IOException e){
 		System.out.println(this.toString() + " doEventClose() " + e.getMessage());
-		callback.onDisconnect(e);
+		eventHandler.onDisconnect(e);
 	}
 	
 	/**
@@ -230,12 +239,12 @@ public class TCP extends Handle {
 		}else{
 			registerWithReactor(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
 		}
-		callback.onConnect();
+		eventHandler.onConnect();
 	}	
 	
 	/**
 	 * Automatically called by the Reactor. This event will not be propagated
-	 * to the application, it is only used internally to automatically send
+	 * to the appHandler, it is only used internally to automatically send
 	 * remaining data from the unsent queue. Any IOException happening here
 	 * will cause the channel to be closed and onDisconnect() to be fired.
 	 * Note that this event won't be fired during a Socks handshake, and the 
@@ -269,22 +278,32 @@ public class TCP extends Handle {
 	/**
 	 * This event handler implements the client side of a Socks4a connection
 	 * request. After it has successfully succeeded the handler will replace
-	 * itself with the handler that the application has provided earlier and
-	 * normal TCP sending and receiving for the application may take place.
+	 * itself with the handler that the appHandler has provided earlier and
+	 * normal TCP sending and receiving for the appHandler may take place.
 	 */
-	private class Socks4aHandler implements Callback{
+	private class Socks4aHandler implements EventHandler{
 		private TCP tcp;
 		private String address;
 		private int port;
 		private String user; // user-ID for Socks-Proxy
-		private Callback application; 
-		
-		public Socks4aHandler(TCP tcp, String address, int port, String user, Callback application){
+		private EventHandler appHandler;
+
+		/**
+		 * Create a new event handler to handle the socks 4a connection protocol
+		 * 
+		 * @param tcp the TCP-object for which this handler will be used. This
+		 * must be a TCP that is already connected to the socks4a proxy
+		 * @param address The address or hostname to connect to
+		 * @param port The port to connect to
+		 * @param user User-ID used during Socks4a protocol
+		 * @param appHandler EeventHandler to install after connection succeeded
+		 */
+		public Socks4aHandler(TCP tcp, String address, int port, String user, EventHandler appHandler){
 			this.tcp = tcp;
 			this.address = address;
 			this.port = port;
 			this.user = user;
-			this.application = application;
+			this.appHandler = appHandler;
 			tcp.insideSocksHandshake = true;
 		}
 
@@ -330,7 +349,7 @@ public class TCP extends Handle {
 		@Override
 		public void onDisconnect(Exception e) {
 			System.out.println("socks4a onDisconnect()");
-			application.onDisconnect(e);
+			appHandler.onDisconnect(e);
 		}
 
 		@Override
@@ -347,8 +366,8 @@ public class TCP extends Handle {
 				return;
 			}
 			
-			// tcp stream established, now hand over all control to application
-			tcp.callback = application;
+			// tcp stream established, now hand over all control to appHandler
+			tcp.eventHandler = appHandler;
 			tcp.insideSocksHandshake = false;
 			tcp.doEventConnect();
 		}
