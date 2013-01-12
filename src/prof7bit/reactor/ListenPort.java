@@ -48,7 +48,7 @@ public class ListenPort extends Handle{
 	 * with a newly instantiated TCP object.
 	 *  
 	 * @param port the port to bind
-	 * @throws IOException
+	 * @throws IOException socket cannot be opened or bound
 	 */
 	public void listen(int port) throws IOException{
 		ServerSocketChannel ssc = ServerSocketChannel.open();

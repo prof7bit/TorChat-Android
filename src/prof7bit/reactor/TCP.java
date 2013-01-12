@@ -64,7 +64,7 @@ public class TCP extends Handle {
 	 *  
 	 * @param r the reactor that should manage this TCP object
 	 * @param sc the underlying connected SocketChannel
-	 * @throws IOException
+	 * @throws IOException if I/O error occurs
 	 */
 	public TCP(Reactor r, SocketChannel sc) throws IOException {
 		System.out.println(this.toString() + " incoming constructor");
@@ -83,7 +83,8 @@ public class TCP extends Handle {
 	 * @param r the reactor that should manage this TCP object
 	 * @param addr the server to connect to
 	 * @param port the port of the server to connect to
-	 * @throws IOException
+	 * @param eh the event handler that will receive the events
+	 * @throws IOException if I/O error occurs
 	 */
 	public TCP(Reactor r, String addr, int port, EventHandler eh) throws IOException{
 		System.out.println(this.toString() + " outgoing constructor");
@@ -102,10 +103,10 @@ public class TCP extends Handle {
 	 * @param addr The server to connect to
 	 * @param port The port of the server to connect to
 	 * @param eh The event handler of the appHandler, may NOT be null
-	 * @param proxy_addr
-	 * @param proxy_port
-	 * @param proxy_user
-	 * @throws IOException
+	 * @param proxy_addr address of the socks proxy
+	 * @param proxy_port port of the socks proxy
+	 * @param proxy_user user to use in socks4 authentication
+	 * @throws IOException if an I/O error occurs while initializing socket
 	 */
 	public TCP(Reactor r, String addr, int port, EventHandler eh, String proxy_addr, int proxy_port, String proxy_user) throws IOException{
 		checkHandler(eh);

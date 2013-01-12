@@ -24,6 +24,7 @@ public class PrintlnRedirect extends OutputStream {
 
 	/**
 	 * Install redirection of stdout and stderr to android log
+	 * @param tag the text of the tag column in the android log
 	 */
 	public static void Install(String tag){
 		System.setOut(new PrintStream(new PrintlnRedirect(tag, LogLevel.DEBUG)));

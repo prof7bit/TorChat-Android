@@ -33,9 +33,10 @@ public class Connection implements TCP.EventHandler{
 	 * onConnect() or the onDisconnect() method will be called. We can already 
 	 * start sending, it will be queued until connect succeeds.
 	 * 
-	 * @param address IP-address or host name to connect to
-	 * @param port
-	 * @throws IOException 
+	 * @param r the reactor that should monitor this connection
+	 * @param addr IP-address or host name to connect to
+	 * @param port Port to connect to
+	 * @throws IOException problems opening the local socket (not the connection itself)  
 	 */
 	public Connection(Reactor r, String addr, int port) throws IOException{
 		tcp = new TCP(r, addr, port, this, "127.0.0.1", 9050, "TorChat");

@@ -42,7 +42,7 @@ public class Reactor extends Thread{
 	 * to this reactor. Before the application ends the reactor's close() 
 	 * method should be called to cleanly terminate and join the thread.
 	 *  
-	 * @throws IOException
+	 * @throws IOException if I/O error occurs
 	 */
 	public Reactor() throws IOException{
 		selector = Selector.open();
@@ -56,7 +56,7 @@ public class Reactor extends Thread{
 	 * handles associated with this reactor will be closed, all TCP disconnect 
 	 * handlers will have been called before this method returns. 
 	 *  
-	 * @throws InterruptedException 
+	 * @throws InterruptedException if interrupt() while in the join() call
 	 */
 	public void close() throws InterruptedException{
 		addTask(new CloseAllAndTerminateRequest());

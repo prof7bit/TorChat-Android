@@ -58,7 +58,7 @@ public class MessageBuffer extends ByteArrayOutputStream{
 	 * additional leading space (0x20) before actually writing the data.
 	 * The data is written exactly as is, no transformations take place.
 	 *  
-	 * @param b
+	 * @param b byte[] containing the data to write
 	 */
 	public void writeBytes(byte[] b){
 		if (count > 0){
@@ -159,16 +159,16 @@ public class MessageBuffer extends ByteArrayOutputStream{
 	 * Decode the TorChat binary decoding and write the 
 	 * decoded binary data into this RawMessage object.
 	 * 
-	 * @param buf byte[] containing the encoded message
+	 * @param incomingBuf byte[] containing the encoded message
 	 */
-	private void decodeFromReceived(byte[] buf){
+	private void decodeFromReceived(byte[] incomingBuf){
 		// replace every \n with 0x0a
 		// replace every \/ with \
 		int pos = 0;
-		while (pos < buf.length){
-			byte b = buf[pos++];
-			if ((b == '\\') && (pos < buf.length)){
-				b = buf[pos++];
+		while (pos < incomingBuf.length){
+			byte b = incomingBuf[pos++];
+			if ((b == '\\') && (pos < incomingBuf.length)){
+				b = incomingBuf[pos++];
 				if (b == 'n'){
 					write(0x0a);
 				}
