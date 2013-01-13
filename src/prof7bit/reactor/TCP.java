@@ -16,7 +16,7 @@ import prof7bit.reactor.ex.SocksConnectionError;
 import prof7bit.reactor.ex.SocksHandshakeError;
 
 /**
- * An Instance of this class represents a TCP connection. The appHandler
+ * An Instance of this class represents a TCP connection. The application
  * must implement the EventHandler interface and assign it to the eventHandler
  * member in order to receive onConnect(), onDisconnect() and onReceive()
  * events. TCP is a thin wrapper around java.nio.SocketChannel. TCP also
@@ -29,7 +29,7 @@ import prof7bit.reactor.ex.SocksHandshakeError;
 public class TCP extends Handle {
 	
 	/**
-	 * The appHandler must implement this interface and assign it to the 
+	 * The application must implement this interface and assign it to the 
 	 * eventHandler field, so that it can receive notifications. All calls to
 	 * these methods will originate from the Reactor thread.
 	 */
@@ -75,7 +75,7 @@ public class TCP extends Handle {
 	/**
 	 * Construct a new outgoing connection.
 	 * This will create the Handle object and initiate the connect. It will
-	 * not block and the appHandler can immediately start using the send()
+	 * not block and the application can immediately start using the send()
 	 * method (which also will not block), even if the connection has not yet
 	 * been established. Some time later the appropriate eventHandler method will 
 	 * be fired once the connection succeeds or fails.
@@ -94,7 +94,7 @@ public class TCP extends Handle {
 
 	/**
 	 * Construct a new outgoing TCP connection through a socks4a proxy.
-	 * Towards the appHandler this behaves exactly like the other constructor,
+	 * Towards the application this behaves exactly like the other constructor,
 	 * you can immediately start sending (queued), etc. The only difference is
 	 * this will connect through a socks4a proxy (4a means the socks proxy will 
 	 * resolve host names) 
@@ -102,7 +102,7 @@ public class TCP extends Handle {
 	 * @param r The reactor that should manage this TCP object
 	 * @param addr The server to connect to
 	 * @param port The port of the server to connect to
-	 * @param eh The event handler of the appHandler, may NOT be null
+	 * @param eh The event handler of the application, may NOT be null
 	 * @param proxy_addr address of the socks proxy
 	 * @param proxy_port port of the socks proxy
 	 * @param proxy_user user to use in socks4 authentication
@@ -111,7 +111,7 @@ public class TCP extends Handle {
 	public TCP(Reactor r, String addr, int port, EventHandler eh, String proxy_addr, int proxy_port, String proxy_user) throws IOException{
 		checkHandler(eh);
 		// the socks handler will upon successful connection replace itself 
-		// with the event handler that was provided by the appHandler.
+		// with the event handler that was provided by the application.
 		Socks4aHandler sockshandler = new Socks4aHandler(this, addr, port, proxy_user, eh);
 		connect(r, proxy_addr, proxy_port, sockshandler);
 	}
@@ -176,7 +176,7 @@ public class TCP extends Handle {
 	
 	/**
 	 * this is used only during socks connect, here don't want to use the
-	 * send queue because the queue contains data sent from the appHandler 
+	 * send queue because the queue contains data sent from the application 
 	 * which must not be mixed with data sent during the socks handshake.
 	 *    
 	 * @param buf ByteBuffer with data to send
@@ -245,7 +245,7 @@ public class TCP extends Handle {
 	
 	/**
 	 * Automatically called by the Reactor. This event will not be propagated
-	 * to the appHandler, it is only used internally to automatically send
+	 * to the application, it is only used internally to automatically send
 	 * remaining data from the unsent queue. Any IOException happening here
 	 * will cause the channel to be closed and onDisconnect() to be fired.
 	 * Note that this event won't be fired during a Socks handshake, and the 
@@ -279,8 +279,8 @@ public class TCP extends Handle {
 	/**
 	 * This event handler implements the client side of a Socks4a connection
 	 * request. After it has successfully succeeded the handler will replace
-	 * itself with the handler that the appHandler has provided earlier and
-	 * normal TCP sending and receiving for the appHandler may take place.
+	 * itself with the handler that the application has provided earlier and
+	 * normal TCP sending and receiving for the application may take place.
 	 */
 	private class Socks4aHandler implements EventHandler{
 		private TCP tcp;
@@ -367,7 +367,7 @@ public class TCP extends Handle {
 				return;
 			}
 			
-			// tcp stream established, now hand over all control to appHandler
+			// tcp stream established, now hand over all control to the application
 			tcp.eventHandler = appHandler;
 			tcp.insideSocksHandshake = false;
 			tcp.doEventConnect();
