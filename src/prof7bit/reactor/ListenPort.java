@@ -17,21 +17,17 @@ import java.nio.channels.SocketChannel;
 public class ListenPort extends Handle{
 	
 	/**
-	 * The application must implement this in order to receive incoming 
-	 * connections. All calls to this interface will originate from the
-	 * reactor thread. The first thing the application must do in onAccept()
-	 * is to assign its implementation of TCP.EventHandler to tcp.callback,
-	 * this must happen before it returns from onAccept().
+	 * The application must provide an implementation of this interface
+	 * to be able to receive notifications about events
 	 */
 	public interface EventHandler {
 		void onAccept(TCP tcp);
 	}
 	
 	/**
-	 * The application must assign its implementation 
-	 * of the EventHandler interface to this member 
+	 * The application's event handler will be assigned here 
 	 */
-	public EventHandler eventHandler;
+	private EventHandler eventHandler;
 
 	public ListenPort(Reactor r, EventHandler eh){
 		reactor = r;
@@ -69,7 +65,7 @@ public class ListenPort extends Handle{
 		eventHandler.onAccept(tcp);
 		
 		// the onAccept handler *must* install a eventHandler before it returns!
-		if (tcp.eventHandler == null){
+		if (tcp.getEventHandler() == null){
 			throw new NullPointerException("TCP instance (incoming) without eventHandler");
 		}
 	}

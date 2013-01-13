@@ -29,9 +29,8 @@ import prof7bit.reactor.ex.SocksHandshakeError;
 public class TCP extends Handle {
 	
 	/**
-	 * The application must implement this interface and assign it to the 
-	 * eventHandler field, so that it can receive notifications. All calls to
-	 * these methods will originate from the Reactor thread.
+	 * The application must provide an implementation of this interface
+	 * to be able to receive notifications about events
 	 */
 	public interface EventHandler {
 		public void onConnect();
@@ -40,9 +39,9 @@ public class TCP extends Handle {
 	}
 	
 	/**
-	 * Assign something here that implements TCP.EventHandler 
+	 * The application's event handler will be assigned here 
 	 */
-	public EventHandler eventHandler;
+	private EventHandler eventHandler;
 	
 	/**
 	 * This holds a queue of unsent or partially sent ByteBuffers if more
@@ -143,12 +142,33 @@ public class TCP extends Handle {
 	/**
 	 * initialize member variables, used during construction
 	 */
-	protected void initMembers(SocketChannel sc, Reactor r, EventHandler eh) throws IOException{
+	private void initMembers(SocketChannel sc, Reactor r, EventHandler eh) throws IOException{
 		sc.configureBlocking(false);
 		sc.socket().setTcpNoDelay(true);
 		channel = sc;
 		reactor = r;
 		eventHandler = eh;
+	}
+
+	/**
+	 * The application must use this to register its event handler if it 
+	 * receives a new incoming connection. For outgoing connections this
+	 * has happened in the constructor already.
+	 * 
+	 * @param eventHandler EventHandler implementation provided by application
+	 */
+	public void setEventHandler(EventHandler eventHandler) {
+		checkHandler(eventHandler);
+		this.eventHandler = eventHandler;
+	}
+	
+	/**
+	 * Get the currently registered event handler
+	 * 
+	 * @return the EventHandler for this TCP object
+	 */
+	public EventHandler getEventHandler() {
+		return this.eventHandler;
 	}
 	
 	/**

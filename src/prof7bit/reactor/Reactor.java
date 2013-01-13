@@ -90,12 +90,11 @@ public class Reactor extends Thread{
 	}
 
 	/**
-	 * Call this method in a loop from within your network thread (or 
-	 * alternatively call reactor.start() to have this done automatically). 
-	 * It will perform all pending registration requests, then block until 
-	 * an event on one of the registered Handle objects happens and then
-	 * dispatch them one after the other to their event handlers. After
-	 * this it will return and has to be called again. 
+	 * This method is called in an infinite loop to wait for events and 
+	 * dispatch them. It will perform all pending registration requests, then 
+	 * block until an event on one of the registered Handle objects happens 
+	 * and then dispatch them one after the other to their event handlers. 
+	 * After this it will return and has to be called again. 
 	 * 
 	 * @param timeout maximum milliseconds to block, 0 means infinite time.
 	 * @throws IOException shouldn't ever happen if used correctly. 
@@ -147,7 +146,8 @@ public class Reactor extends Thread{
 	}
 	
 	/**
-	 * Register a Handle object with this Reactor or change its registration. 
+	 * Register a Handle object with this Reactor or change its registration.
+	 * This method is automatically invoked by the handle objects themselves. 
 	 * This method is thread safe and will not block. All registration requests
 	 * will be queued to be run from the Reactor thread immediately before the 
 	 * next call to selector.select(). This method is automatically called by 
@@ -162,7 +162,8 @@ public class Reactor extends Thread{
 
 	/**
 	 * Request the handle to be closed. This will also make it fire
-	 * the onDisonnect() handler if it is a TCP connection.
+	 * the onDisonnect() handler if it is a TCP connection. This method
+	 * is automatically called by the handle objects themselves. 
 	 * 
 	 * @param h the Handle to close
 	 * @param reason IOException that should be passed to the event handler

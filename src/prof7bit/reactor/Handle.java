@@ -26,9 +26,4 @@ public abstract class Handle {
 	}
 	
 	abstract void doEventClose(IOException e);
-
-	@Override
-	protected void finalize(){
-		System.out.println(this.toString() + " garbage collected");
-	}
 }

@@ -23,7 +23,7 @@ public class Connection implements TCP.EventHandler{
 	 */
 	public Connection(TCP c){
 		tcp = c;
-		tcp.eventHandler = this;
+		tcp.setEventHandler(this);
 	}
 	
 	/**
