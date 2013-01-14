@@ -11,7 +11,6 @@ import java.util.Locale;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-
 /**
  * An Instance of this class represents a TCP connection. The application
  * must implement the ListenPortHandler interface and assign it to the eventHandler
@@ -46,7 +45,10 @@ public class TCP extends Handle {
 		
 	/**
 	 * Construct a new incoming TCP. 
-	 * The Reactor will call this constructor automatically.
+	 * The Framework will call this constructor automatically for incoming 
+	 * connections. Note that we do not yet initialize the event handler here, 
+	 * for incoming connections this will happen *after* the onAccept() has
+	 * returned. See the code of ListenPort.doEventAccept() for details.
 	 *  
 	 * @param r the reactor that should manage this TCP object
 	 * @param sc the underlying connected SocketChannel
@@ -54,7 +56,7 @@ public class TCP extends Handle {
 	 */
 	public TCP(Reactor r, SocketChannel sc) throws IOException {
 		System.out.println(this.toString() + " incoming constructor");
-		initMembers(sc, r, null);
+		initMembers(sc, r);
 		registerWithReactor(SelectionKey.OP_READ);
 	}
 
@@ -105,7 +107,8 @@ public class TCP extends Handle {
 	 */
 	private void connect(Reactor r, String addr, int port, TCPHandler eh) throws IOException {
 		SocketChannel sc = SocketChannel.open();
-		initMembers(sc, r, eh);
+		initMembers(sc, r);
+		eventHandler = eh;
 		SocketAddress sa = new InetSocketAddress(addr, port);
 		if (sc.connect(sa)){
 			// according to documentation it is possible for local connections
@@ -119,14 +122,13 @@ public class TCP extends Handle {
 	}
 	
 	/**
-	 * initialize member variables, used during construction
+	 * initialize some member variables, used during construction
 	 */
-	private void initMembers(SocketChannel sc, Reactor r, TCPHandler eh) throws IOException{
+	private void initMembers(SocketChannel sc, Reactor r) throws IOException{
 		sc.configureBlocking(false);
 		sc.socket().setTcpNoDelay(true);
 		channel = sc;
 		reactor = r;
-		eventHandler = eh;
 	}
 
 	/**

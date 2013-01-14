@@ -10,7 +10,7 @@ import prof7bit.reactor.TCP;
 
 public class Connection implements TCPHandler{
 	private TCP tcp;
-	private byte[] bufIncomplete = null;
+	private byte[] bufIncomplete = new byte[0];
 	
 	public void send(MessageBuffer b){
 		tcp.send(b.encodeForSending());
@@ -60,14 +60,10 @@ public class Connection implements TCPHandler{
 		// bufTotal = existing data + new data
 		int lenReceived = bufReceived.limit();
 		int lenIncomplete = 0;
-		if (bufIncomplete != null){
-			lenIncomplete = bufIncomplete.length;
-		}
+		lenIncomplete = bufIncomplete.length;
 		int lenTotal = lenIncomplete + lenReceived;
 		byte[] bufTotal = new byte[lenTotal];
-		if (lenIncomplete > 0){
-			System.arraycopy(bufIncomplete, 0, bufTotal, 0, lenIncomplete);
-		}
+		System.arraycopy(bufIncomplete, 0, bufTotal, 0, lenIncomplete);
 		System.arraycopy(bufReceived.array(), 0, bufTotal, lenIncomplete, lenReceived);
 		
 		// split bufTotal at 0x0a and call onCompleteMesssage() with every chunk
@@ -93,12 +89,9 @@ public class Connection implements TCPHandler{
 			bufIncomplete = new byte[lenRemain];
 			System.arraycopy(bufTotal, posMsgStart, bufIncomplete, 0, lenRemain);
 		}else{
-			// Most often the remaining data will be empty, so for this reason 
-			// I am treating this as a separate case, introducing some more
-			// if/else and make it look more complicated but avoiding to 
-			// re-allocate an unused byte[0] over and over again. This way
-			// it will just stay null almost all of the time.
-			bufIncomplete = null;
+			if (bufIncomplete.length > 0){
+				bufIncomplete = new byte[0];
+			}
 		}
 	}
 

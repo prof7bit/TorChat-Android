@@ -45,7 +45,7 @@ public class ListenPort extends Handle{
 	}
 
 	/**
-	 * called by the reactor
+	 * called by the reactor.
 	 */
 	protected void doEventAccept() throws IOException{
 		ServerSocketChannel ssc = (ServerSocketChannel) channel;
