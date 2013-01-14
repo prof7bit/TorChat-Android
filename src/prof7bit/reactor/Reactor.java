@@ -9,7 +9,7 @@ import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import prof7bit.reactor.ex.ConnectionClosedHere;
+
 
 /**
  * This implements the reactor pattern on top of the java.nio.Selector class.
@@ -255,7 +255,7 @@ public class Reactor extends Thread{
 		public void run() {
 			for (SelectionKey key:selector.keys()) {
 				addTask(new CloseRequest((Handle) key.attachment(), 
-						new ConnectionClosedHere("reactor shutdown")));
+						new XConnectionClosedHere("reactor shutdown")));
 			}
 			addTask(new TerminateRequest());
 		}

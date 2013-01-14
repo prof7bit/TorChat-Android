@@ -1,12 +1,14 @@
 package prof7bit.torchat.core;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import prof7bit.reactor.TCPHandler;
 import prof7bit.reactor.Reactor;
 import prof7bit.reactor.TCP;
 
-public class Connection implements TCP.EventHandler{
+public class Connection implements TCPHandler{
 	private TCP tcp;
 	private byte[] bufIncomplete = null;
 	
@@ -23,7 +25,6 @@ public class Connection implements TCP.EventHandler{
 	 */
 	public Connection(TCP c){
 		tcp = c;
-		tcp.setEventHandler(this);
 	}
 	
 	/**
@@ -110,12 +111,13 @@ public class Connection implements TCP.EventHandler{
 		MessageBuffer b = new MessageBuffer(msg);
 		
 		// debug print message
-		while (true){
-			String s = b.readString();
-			if (s == null){
-				break;
+		try {
+			while (true){
+				String s = b.readString();
+				System.out.println("-->" + s + "<--");
 			}
-			System.out.println("-->" + s + "<--");
+		} catch (EOFException e) {
+			System.out.println("end of message.");
 		}
 	}
 }

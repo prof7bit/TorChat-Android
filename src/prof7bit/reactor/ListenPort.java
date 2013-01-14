@@ -8,7 +8,7 @@ import java.nio.channels.SocketChannel;
 
 /**
  * This class represents a network port listening for incoming TCP connections.
- * It is a thin wrapper around ServerSocketChannel. EventHandler.onAccept() must be
+ * It is a thin wrapper around ServerSocketChannel. ListenPortHandler.onAccept() must be
  * implemented by the application and will be fired when an incoming TCP
  * connection is accepted.
  * 
@@ -17,24 +17,13 @@ import java.nio.channels.SocketChannel;
 public class ListenPort extends Handle{
 	
 	/**
-	 * The application must provide an implementation of this interface
-	 * to be able to receive notifications about events
-	 */
-	public interface EventHandler {
-		void onAccept(TCP tcp);
-	}
-	
-	/**
 	 * The application's event handler will be assigned here 
 	 */
-	private EventHandler eventHandler;
+	private ListenPortHandler eventHandler;
 
-	public ListenPort(Reactor r, EventHandler eh){
+	public ListenPort(Reactor r, ListenPortHandler eh){
 		reactor = r;
 		eventHandler = eh;
-		if (eventHandler == null){
-			throw new NullPointerException("ListenPort instance without eventHandler");
-		}
 	}
 	
 	/**
@@ -62,12 +51,8 @@ public class ListenPort extends Handle{
 		ServerSocketChannel ssc = (ServerSocketChannel) channel;
 		SocketChannel sc = ssc.accept();
 		TCP tcp = new TCP(reactor, sc);
-		eventHandler.onAccept(tcp);
-		
-		// the onAccept handler *must* install a eventHandler before it returns!
-		if (tcp.getEventHandler() == null){
-			throw new NullPointerException("TCP instance (incoming) without eventHandler");
-		}
+		TCPHandler eh = eventHandler.onAccept(tcp);
+		tcp.setEventHandler(eh);
 	}
 
 	/**

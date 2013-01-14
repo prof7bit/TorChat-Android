@@ -1,6 +1,10 @@
 package prof7bit.torchat.android.service;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+
+import prof7bit.reactor.TCPHandler;
 import prof7bit.reactor.ListenPort;
+import prof7bit.reactor.ListenPortHandler;
 import prof7bit.reactor.Reactor;
 import prof7bit.reactor.TCP;
 import prof7bit.torchat.android.R;
@@ -14,7 +18,7 @@ import android.os.IBinder;
 import android.widget.Toast;
 
 
-public class Backend extends Service implements ListenPort.EventHandler{
+public class Backend extends Service implements ListenPortHandler{
 	
 	private NotificationManager nMgr;
 	private int NOTIFICATION = 10429; //Any unique number for this notification
@@ -87,7 +91,27 @@ public class Backend extends Service implements ListenPort.EventHandler{
 	}
 
 	@Override
-	public void onAccept(TCP tcp) {
+	public TCPHandler onAccept(TCP tcp) {
 		System.out.println("onAccept");
+		return new TCPHandler() {
+
+			@Override
+			public void onConnect() {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void onDisconnect(Exception e) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void onReceive(ByteBuffer buf) {
+				// TODO Auto-generated method stub
+				
+			}
+		};
 	}
 }

@@ -11,13 +11,10 @@ import java.util.Locale;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import prof7bit.reactor.ex.ConnectionClosedRemote;
-import prof7bit.reactor.ex.SocksConnectionError;
-import prof7bit.reactor.ex.SocksHandshakeError;
 
 /**
  * An Instance of this class represents a TCP connection. The application
- * must implement the EventHandler interface and assign it to the eventHandler
+ * must implement the ListenPortHandler interface and assign it to the eventHandler
  * member in order to receive onConnect(), onDisconnect() and onReceive()
  * events. TCP is a thin wrapper around java.nio.SocketChannel. TCP also
  * implements asynchronous sending of outgoing data. Every TCP object is 
@@ -29,19 +26,9 @@ import prof7bit.reactor.ex.SocksHandshakeError;
 public class TCP extends Handle {
 	
 	/**
-	 * The application must provide an implementation of this interface
-	 * to be able to receive notifications about events
-	 */
-	public interface EventHandler {
-		public void onConnect();
-		public void onDisconnect(Exception e);
-		public void onReceive(ByteBuffer buf);
-	}
-	
-	/**
 	 * The application's event handler will be assigned here 
 	 */
-	private EventHandler eventHandler;
+	private TCPHandler eventHandler;
 	
 	/**
 	 * This holds a queue of unsent or partially sent ByteBuffers if more
@@ -85,9 +72,8 @@ public class TCP extends Handle {
 	 * @param eh the event handler that will receive the events
 	 * @throws IOException if I/O error occurs
 	 */
-	public TCP(Reactor r, String addr, int port, EventHandler eh) throws IOException{
+	public TCP(Reactor r, String addr, int port, TCPHandler eh) throws IOException{
 		System.out.println(this.toString() + " outgoing constructor");
-		checkHandler(eh);
 		connect(r, addr, port, eh);
 	}
 
@@ -107,8 +93,7 @@ public class TCP extends Handle {
 	 * @param proxy_user user to use in socks4 authentication
 	 * @throws IOException if an I/O error occurs while initializing socket
 	 */
-	public TCP(Reactor r, String addr, int port, EventHandler eh, String proxy_addr, int proxy_port, String proxy_user) throws IOException{
-		checkHandler(eh);
+	public TCP(Reactor r, String addr, int port, TCPHandler eh, String proxy_addr, int proxy_port, String proxy_user) throws IOException{
 		// the socks handler will upon successful connection replace itself 
 		// with the event handler that was provided by the application.
 		Socks4aHandler sockshandler = new Socks4aHandler(this, addr, port, proxy_user, eh);
@@ -118,7 +103,7 @@ public class TCP extends Handle {
 	/**
 	 * this is only meant to be used from inside the constructor
 	 */
-	private void connect(Reactor r, String addr, int port, EventHandler eh) throws IOException {
+	private void connect(Reactor r, String addr, int port, TCPHandler eh) throws IOException {
 		SocketChannel sc = SocketChannel.open();
 		initMembers(sc, r, eh);
 		SocketAddress sa = new InetSocketAddress(addr, port);
@@ -133,16 +118,10 @@ public class TCP extends Handle {
 		}
 	}
 	
-	private void checkHandler(EventHandler eh){
-		if (eh == null){
-			throw new NullPointerException("TCP instance (outgoing) without eventHandler");
-		}
-	}
-	
 	/**
 	 * initialize member variables, used during construction
 	 */
-	private void initMembers(SocketChannel sc, Reactor r, EventHandler eh) throws IOException{
+	private void initMembers(SocketChannel sc, Reactor r, TCPHandler eh) throws IOException{
 		sc.configureBlocking(false);
 		sc.socket().setTcpNoDelay(true);
 		channel = sc;
@@ -155,22 +134,12 @@ public class TCP extends Handle {
 	 * receives a new incoming connection. For outgoing connections this
 	 * has happened in the constructor already.
 	 * 
-	 * @param eventHandler EventHandler implementation provided by application
+	 * @param eventHandler ListenPortHandler implementation provided by application
 	 */
-	public void setEventHandler(EventHandler eventHandler) {
-		checkHandler(eventHandler);
+	public void setEventHandler(TCPHandler eventHandler) {
 		this.eventHandler = eventHandler;
 	}
-	
-	/**
-	 * Get the currently registered event handler
-	 * 
-	 * @return the EventHandler for this TCP object
-	 */
-	public EventHandler getEventHandler() {
-		return this.eventHandler;
-	}
-	
+		
 	/**
 	 * Send the bytes in the buffer asynchronously. Data will be enqueued 
 	 * for sending and OP_WRITE events will be used to send it from the Reactor
@@ -224,7 +193,7 @@ public class TCP extends Handle {
 		if (numRead == -1){
 			// this will make the reactor close the channel
 			// and then fire our onDisconnect() event.
-			throw new ConnectionClosedRemote("closed by foreign host");
+			throw new XConnectionClosedRemote("closed by foreign host");
 		}else{
 			buf.position(0);
 			buf.limit(numRead);
@@ -302,12 +271,12 @@ public class TCP extends Handle {
 	 * itself with the handler that the application has provided earlier and
 	 * normal TCP sending and receiving for the application may take place.
 	 */
-	private class Socks4aHandler implements EventHandler{
+	private class Socks4aHandler implements TCPHandler{
 		private TCP tcp;
 		private String address;
 		private int port;
 		private String user; // user-ID for Socks-Proxy
-		private EventHandler appHandler;
+		private TCPHandler appHandler;
 
 		/**
 		 * Create a new event handler to handle the socks 4a connection protocol
@@ -319,7 +288,7 @@ public class TCP extends Handle {
 		 * @param user User-ID used during Socks4a protocol
 		 * @param appHandler EeventHandler to install after connection succeeded
 		 */
-		public Socks4aHandler(TCP tcp, String address, int port, String user, EventHandler appHandler){
+		public Socks4aHandler(TCP tcp, String address, int port, String user, TCPHandler appHandler){
 			this.tcp = tcp;
 			this.address = address;
 			this.port = port;
@@ -377,13 +346,13 @@ public class TCP extends Handle {
 		public void onReceive(ByteBuffer buf) {
 			System.out.println("socks4a onReceive()");
 			if (buf.limit() != 8){
-				tcp.close(new SocksHandshakeError("malformed reply from socks proxy"));
+				tcp.close(new XSocksHandshakeError("malformed reply from socks proxy"));
 				return;
 			}
 			byte status = buf.array()[1];
 			if (status != 0x5a){
 				String msg = String.format(Locale.ENGLISH, "socks4a error %d while connecting %s:%s", status, address, port); 
-				tcp.close(new SocksConnectionError(msg, status));
+				tcp.close(new XSocksConnectionError(msg, status));
 				return;
 			}
 			

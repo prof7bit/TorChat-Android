@@ -1,6 +1,7 @@
 package prof7bit.torchat.core;
 
 import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 
@@ -75,14 +76,16 @@ public class MessageBuffer extends ByteArrayOutputStream{
 	 * appear then it will read an empty string and advance the position
 	 * by 1, quasi reading the empty strings "between" the spaces).
 	 * If there is no more space until the end it will read until the end.
-	 * If position is at the end (nothing more to read) it will return null.
+	 * If position is at the end (nothing more to read) it will throw
+	 * .
 	 * 
 	 * @return newly allocated byte[] containing the read bytes 
+	 * @throws EOFException if no more bytes to read
 	 */
-	public byte[] readBytes(){
+	public byte[] readBytes() throws EOFException{
 		int posDelimiter = posRead;
 		if (posDelimiter >= count){
-			return null;
+			throw new EOFException("no more bytes to read");
 		}
 		while (posDelimiter < count){
 			if (this.buf[posDelimiter] == ' '){
@@ -105,13 +108,10 @@ public class MessageBuffer extends ByteArrayOutputStream{
 	 * it will also trim() the string and normalize all line endings to 0x0a.
 	 * 
 	 * @return String with read bytes.
+	 * @throws EOFException if nothing more to read
 	 */
-	public String readString(){
-		byte[] b = readBytes();
-		if (b == null){
-			return null;
-		}
-		return decodeString(b);
+	public String readString() throws EOFException{
+		return decodeString(readBytes());
 	}
 	
 	/**
