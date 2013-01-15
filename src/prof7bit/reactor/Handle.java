@@ -26,7 +26,7 @@ public abstract class Handle {
 	}
 	
 	public void close(String reason){
-		close(new IOException(reason));
+		close(new XConnectionClosedHere(reason));
 	}
 	
 	abstract void doEventClose(IOException e);
