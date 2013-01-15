@@ -156,7 +156,7 @@ public class Connection implements TCPHandler{
 			Class<?> C = Class.forName(packageName + ".Msg_" + command);
 			return (Msg) C.getConstructor(Connection.class).newInstance(this);
 		} catch (ClassNotFoundException e) {
-			// this is normal, it happens for unknown incoming commands,in this 
+			// this is normal, it happens for unknown incoming commands, in this 
 			// case we use the null-message which will just send the reply 
 			// "not_implemented" and otherwise does nothing.
 			return new MsgUnknown(this);
