@@ -8,6 +8,13 @@ import prof7bit.reactor.TCPHandler;
 import prof7bit.reactor.Reactor;
 import prof7bit.reactor.TCP;
 
+/**
+ * This class represents an established TorChat p2p connection, it can either 
+ * be an incoming or outgoing connection. Every buddy always needs both of them. 
+ *
+ * @author Bernd Kreuss <prof7bit@gmail.com>
+ *
+ */
 public class Connection implements TCPHandler{
 	private TCP tcp;
 	private byte[] bufIncomplete = new byte[0];
@@ -96,21 +103,63 @@ public class Connection implements TCPHandler{
 	}
 
 	/**
-	 * This will be called for every complete message
+	 * This will be called for every complete message. It will try to 
+	 * instantiate the appropriate message class for this type of message,
+	 * parse and enqueue it for processing. Unknown commands will result in a 
+	 * MsgUnknown message to be enqueued, malformed messages (empty or unable 
+	 * to parse) are a protocol violation and it will close the connection.
 	 * 
-	 * @param msg the raw transfer-encoded message, delimiters already stripped
+	 * @param bytes the raw transfer-encoded message, delimiters already stripped
 	 */
-	private void onCompleteMessage(byte[] msg){
-		MessageBuffer b = new MessageBuffer(msg);
-		
-		// debug print message
+	private void onCompleteMessage(byte[] bytes){
+		MessageBuffer buf = new MessageBuffer(bytes);
 		try {
-			while (true){
-				String s = b.readString();
-				System.out.println("-->" + s + "<--");
-			}
+			String command = buf.readCommand();
+			Msg msg = getMsgInstanceFromCommand(command);
+			msg.parse(buf);
+			msg.execute(); // TODO: should enqueue it for executing in separate thread
 		} catch (EOFException e) {
-			System.out.println("end of message.");
+			// this would be thrown by readCommand()
+			this.tcp.close("peer has sent empty message");
+		} catch (XMessageParseException e) {
+			// this would be thrown by parse()
+			this.tcp.close("peer has sent malformed message: " + e.getMessage());
+		} catch (Exception e) {
+			// This would be thrown by getMsgInstanceFromCommand()
+			// this should never happen and would be a bug in TorChat itself.
+			System.err.println("Houston, we have a problem!");
+			e.printStackTrace();
+			this.tcp.close("internal protocol error");
+		} finally {
+			try {
+				buf.close();
+			} catch (IOException e) {
+				// won't happen
+			}
+		}
+	}
+	
+	/**
+	 * Instantiate and return the correct message for this command.
+	 * If the command can not be found then instantiate MsgUnknown.
+	 * 
+	 * @param command String containing the command
+	 * @return an instance of the appropriate message class
+	 * @throws Exception missing or wrong constructor or illegal arguments
+	 * when calling constructor or other things that indicate wrongly 
+	 * implemented message classes. This would be a bug in TorChat
+	 * itself or one of the Msg_xxxx classes and is not supposed to happen.
+	 */
+	private Msg getMsgInstanceFromCommand(String command) throws Exception{
+		try {
+			String packageName = this.getClass().getPackage().getName();
+			Class<?> C = Class.forName(packageName + ".Msg_" + command);
+			return (Msg) C.getConstructor(Connection.class).newInstance(this);
+		} catch (ClassNotFoundException e) {
+			// this is normal, it happens for unknown incoming commands,in this 
+			// case we use the null-message which will just send the reply 
+			// "not_implemented" and otherwise does nothing.
+			return new MsgUnknown(this);
 		}
 	}
 }

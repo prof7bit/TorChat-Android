@@ -25,5 +25,9 @@ public abstract class Handle {
 		reactor.requestCloseHandle(this, reason);
 	}
 	
+	public void close(String reason){
+		close(new IOException(reason));
+	}
+	
 	abstract void doEventClose(IOException e);
 }

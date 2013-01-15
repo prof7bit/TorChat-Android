@@ -5,6 +5,15 @@ import java.io.EOFException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 
+/**
+ * This class is used when parsing a raw incoming message or when serializing 
+ * an outgoing message. It wraps a byte array for the serialized message data 
+ * and has methods to read and write parts of it and for handling TorChat's 
+ * transfer-encoding format.      
+ *
+ * @author Bernd Kreuss <prof7bit@gmail.com>
+ *
+ */
 public class MessageBuffer extends ByteArrayOutputStream{
 	
 	private int posRead = 0;
@@ -13,7 +22,7 @@ public class MessageBuffer extends ByteArrayOutputStream{
 	 * Constructor used when creating a new message for sending
 	 */
 	public MessageBuffer(){
-		super(256);
+		super(256); // don't worry, it can grow automatically if needed
 	}
 	
 	/**
@@ -76,8 +85,7 @@ public class MessageBuffer extends ByteArrayOutputStream{
 	 * appear then it will read an empty string and advance the position
 	 * by 1, quasi reading the empty strings "between" the spaces).
 	 * If there is no more space until the end it will read until the end.
-	 * If position is at the end (nothing more to read) it will throw
-	 * .
+	 * If position is at the end (nothing more to read) it will throw EOFException.
 	 * 
 	 * @return newly allocated byte[] containing the read bytes 
 	 * @throws EOFException if no more bytes to read
@@ -106,12 +114,30 @@ public class MessageBuffer extends ByteArrayOutputStream{
 	 * it will convert the read bytes into a String. The conversion to String 
 	 * means it will assume UTF-8 encoding and try to decode it to unicode, 
 	 * it will also trim() the string and normalize all line endings to 0x0a.
+	 * If position is at the end (nothing more to read) it will throw EOFException.
 	 * 
 	 * @return String with read bytes.
 	 * @throws EOFException if nothing more to read
 	 */
 	public String readString() throws EOFException{
 		return decodeString(readBytes());
+	}
+	
+	/**
+	 * Read the command of the message or throw EOF if it is empty.
+	 * This will also reset the read position and after it has returned the 
+	 * position will be right at the beginning of the message data.  
+	 * 
+	 * @return String containing the command
+	 * @throws EOFException if the command or the entire message is empty
+	 */
+	public String readCommand() throws EOFException{
+		resetReadPos();
+		String c = readString();
+		if (c.length() == 0){
+			throw new EOFException();
+		}
+		return c;
 	}
 	
 	/**
