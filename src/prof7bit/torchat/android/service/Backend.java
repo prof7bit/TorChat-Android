@@ -1,14 +1,9 @@
 package prof7bit.torchat.android.service;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-
-import prof7bit.reactor.TCPHandler;
-import prof7bit.reactor.ListenPort;
-import prof7bit.reactor.ListenPortHandler;
-import prof7bit.reactor.Reactor;
-import prof7bit.reactor.TCP;
 import prof7bit.torchat.android.R;
 import prof7bit.torchat.android.gui.TorChat;
+import prof7bit.torchat.core.Client;
+import prof7bit.torchat.core.ClientHandler;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -18,13 +13,12 @@ import android.os.IBinder;
 import android.widget.Toast;
 
 
-public class Backend extends Service implements ListenPortHandler{
+public class Backend extends Service implements ClientHandler {
 	
 	private NotificationManager nMgr;
 	private int NOTIFICATION = 10429; //Any unique number for this notification
 
-	private Reactor reactor;
-	private ListenPort listenPort;
+	private Client client;
 	
 	@SuppressWarnings("deprecation")
 	private void showNotification() {
@@ -64,12 +58,10 @@ public class Backend extends Service implements ListenPortHandler{
 		PrintlnRedirect.Install("TorChat");
 		
 		try {
-			reactor = new Reactor();
-			listenPort = new ListenPort(reactor, this);
-			listenPort.listen(11009);
+			client = new Client(this, 11009);
 			showNotification();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			// TODO what to do now?
 			e.printStackTrace();
 		}
 	}	
@@ -77,7 +69,7 @@ public class Backend extends Service implements ListenPortHandler{
 	@Override	
 	public void onDestroy() {	
 		try {
-			reactor.close();
+			client.close();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -88,30 +80,5 @@ public class Backend extends Service implements ListenPortHandler{
 	@Override
 	public void onStart(Intent intent, int startid) {
 		// nothing
-	}
-
-	@Override
-	public TCPHandler onAccept(TCP tcp) {
-		System.out.println("onAccept");
-		return new TCPHandler() {
-
-			@Override
-			public void onConnect() {
-				// TODO Auto-generated method stub
-				
-			}
-
-			@Override
-			public void onDisconnect(Exception e) {
-				// TODO Auto-generated method stub
-				
-			}
-
-			@Override
-			public void onReceive(ByteBuffer buf) {
-				// TODO Auto-generated method stub
-				
-			}
-		};
 	}
 }
