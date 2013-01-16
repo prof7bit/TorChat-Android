@@ -130,12 +130,6 @@ public class Connection implements TCPHandler{
 			System.err.println("Houston, we have a problem!");
 			e.printStackTrace();
 			this.tcp.close("internal protocol error");
-		} finally {
-			try {
-				buf.close();
-			} catch (IOException e) {
-				// won't happen
-			}
 		}
 	}
 	
