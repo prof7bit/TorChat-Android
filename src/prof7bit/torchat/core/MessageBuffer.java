@@ -102,12 +102,30 @@ public class MessageBuffer extends ByteArrayOutputStream{
 			posDelimiter++;
 		}
 		int lenRead = posDelimiter - posRead;
+		return readNBytes(lenRead, 1);
+	}
+	
+	
+	/**
+	 * like readBytes but will always read all remaining bytes until the end
+	 * 
+	 * @return newly allocated byte[] containing the read bytes 
+	 * @throws EOFException if no more bytes to read
+	 */
+	public byte[] readBytesUntilEnd() throws EOFException{
+		return readNBytes(count - posRead, 1);
+	}
+	
+	private byte[] readNBytes(int lenRead, int skip) throws EOFException{
+		if ((lenRead < 0) | (lenRead + posRead > count)){
+			throw new EOFException("no more bytes to read");
+		}
 		byte[] result = new byte[lenRead];
 		System.arraycopy(buf, posRead, result, 0, lenRead);
-		posRead = posDelimiter + 1;
+		posRead += lenRead + skip;
 		return result;
 	}
-
+	
 	/**
 	 * Read Sting until the next space (0x20) and advance the position to the
 	 * place after that space. This method behaves exactly like readBytes() but 
@@ -234,6 +252,6 @@ public class MessageBuffer extends ByteArrayOutputStream{
 	}
 
 	private String trimAndNormalize(String s){
-		return s.trim().replaceAll("\\r\\n?", "\\n");
+		return s.trim().replaceAll("\\r\\n?", "\n");
 	}
 }
