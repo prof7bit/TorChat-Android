@@ -96,6 +96,7 @@ public class TCP extends Handle {
 	 * @throws IOException if an I/O error occurs while initializing socket
 	 */
 	public TCP(Reactor r, String addr, int port, TCPHandler eh, String proxy_addr, int proxy_port, String proxy_user) throws IOException{
+		checkEventHandler(eh);
 		// the socks handler will upon successful connection replace itself 
 		// with the event handler that was provided by the application.
 		Socks4aHandler sockshandler = new Socks4aHandler(this, addr, port, proxy_user, eh);
@@ -108,7 +109,7 @@ public class TCP extends Handle {
 	private void connect(Reactor r, String addr, int port, TCPHandler eh) throws IOException {
 		SocketChannel sc = SocketChannel.open();
 		initMembers(sc, r);
-		eventHandler = eh;
+		setEventHandler(eh);
 		SocketAddress sa = new InetSocketAddress(addr, port);
 		if (sc.connect(sa)){
 			// according to documentation it is possible for local connections
@@ -139,7 +140,14 @@ public class TCP extends Handle {
 	 * @param eventHandler ListenPortHandler implementation provided by application
 	 */
 	public void setEventHandler(TCPHandler eventHandler) {
+		checkEventHandler(eventHandler);
 		this.eventHandler = eventHandler;
+	}
+	
+	private void checkEventHandler(TCPHandler eh){
+		if (eh == null){
+			throw new  IllegalArgumentException("TCP event handler must not be null");
+		}
 	}
 		
 	/**
@@ -359,7 +367,7 @@ public class TCP extends Handle {
 			}
 			
 			// tcp stream established, now hand over all control to the application
-			tcp.eventHandler = appHandler;
+			tcp.setEventHandler(appHandler);
 			tcp.insideSocksHandshake = false;
 			tcp.doEventConnect();
 		}
