@@ -1,5 +1,6 @@
 package prof7bit.torchat.android.service;
 import java.io.IOException;
+
 import prof7bit.torchat.android.R;
 import prof7bit.torchat.android.gui.TorChat;
 import prof7bit.torchat.core.Client;

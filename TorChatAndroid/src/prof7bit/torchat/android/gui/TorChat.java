@@ -1,16 +1,15 @@
 package prof7bit.torchat.android.gui;
 
-import com.actionbarsherlock.app.SherlockActivity;
-
 import prof7bit.torchat.android.R;
 import prof7bit.torchat.android.service.Backend;
 import prof7bit.torchat.android.service.PrintlnRedirect;
-
 import android.content.Intent;
 import android.os.Bundle;
+
+import com.actionbarsherlock.app.SherlockActivity;
 import com.actionbarsherlock.view.Menu;
-import com.actionbarsherlock.view.MenuItem;
 import com.actionbarsherlock.view.MenuInflater;
+import com.actionbarsherlock.view.MenuItem;
 
 /**
  * Main activity that is visible on start of application.
