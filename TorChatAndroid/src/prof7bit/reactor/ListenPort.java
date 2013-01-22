@@ -22,10 +22,24 @@ public class ListenPort extends Handle{
 	private ListenPortHandler eventHandler;
 
 	public ListenPort(Reactor r, ListenPortHandler eh){
+		checkReactor(r);
+		checkHandler(eh);
 		reactor = r;
 		eventHandler = eh;
 	}
 	
+	private void checkReactor(Reactor r) {
+		if (r == null){
+			throw new IllegalArgumentException("ListenPort reactor must not be null");
+		}
+	}
+
+	private void checkHandler(ListenPortHandler eh) {
+		if (eh == null){
+			throw new IllegalArgumentException("ListenPort event handler must not be null");
+		}
+	}
+
 	/**
 	 * bind the port and start listening for incoming TCP connections.
 	 * Every incoming TCP connection will now be automatically accepted and 
